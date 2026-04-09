@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ASU Seat Studio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-one"></div>
+      <div class="ambient ambient-two"></div>
+      <main class="layout">
+        <section class="hero panel reveal">
+          <p class="eyebrow">ASU Seat Studio</p>
+          <h1>Seat monitoring with a quieter, sharper interface.</h1>
+          <p class="lede">
+            Built from your original Python scraper, now reimagined as a clean command center for
+            watching ASU class sections, spotting open seats, and optionally sending iMessage alerts.
+          </p>
+          <div class="hero-metrics">
+            <div>
+              <span>Mode</span>
+              <strong>Live Selenium scrape</strong>
+            </div>
+            <div>
+              <span>Campus Filter</span>
+              <strong>Tempe + iCourse</strong>
+            </div>
+            <div>
+              <span>Signals</span>
+              <strong>Open seats + watch list</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel control-panel reveal">
+          <form method="get" class="search-form">
+            <div class="field-grid">
+              <label>
+                <span>Subject</span>
+                <input type="text" name="subject" value="{{ values.subject }}" placeholder="PHY" />
+              </label>
+              <label>
+                <span>Catalog Number</span>
+                <input type="text" name="catalog_nbr" value="{{ values.catalog_nbr }}" placeholder="131" />
+              </label>
+              <label>
+                <span>Term</span>
+                <input type="text" name="term" value="{{ values.term }}" placeholder="2257" />
+              </label>
+              <label class="field-wide">
+                <span>Watched Class Numbers</span>
+                <input
+                  type="text"
+                  name="watched"
+                  value="{{ values.watched }}"
+                  placeholder="61694,61701"
+                />
+              </label>
+              <label class="field-wide">
+                <span>Phone Numbers for iMessage Alerts</span>
+                <input
+                  type="text"
+                  name="phones"
+                  value="{{ values.phones }}"
+                  placeholder="+12065551234,+12065559876"
+                />
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" name="auto_refresh" {% if values.auto_refresh %}checked{% endif %} />
+                <span>Auto-refresh every 60 seconds</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" name="send_texts" {% if values.send_texts %}checked{% endif %} />
+                <span>Send iMessage when watched sections open</span>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button type="submit">Run monitor</button>
+              {% if source_url %}
+                <a href="{{ source_url }}" target="_blank" rel="noreferrer">View ASU source</a>
+              {% endif %}
+            </div>
+          </form>
+        </section>
+
+        {% if error %}
+          <section class="panel status-card error reveal">
+            <p class="status-label">Monitor error</p>
+            <p>{{ error }}</p>
+          </section>
+        {% endif %}
+
+        {% if summary %}
+          <section class="stats-grid reveal">
+            <article class="stat-card panel">
+              <span>Total sections</span>
+              <strong>{{ summary.total_sections }}</strong>
+            </article>
+            <article class="stat-card panel">
+              <span>Watched sections</span>
+              <strong>{{ summary.watched_sections }}</strong>
+            </article>
+            <article class="stat-card panel accent">
+              <span>Open seats</span>
+              <strong>{{ summary.open_sections }}</strong>
+            </article>
+            <article class="stat-card panel">
+              <span>Watched + open</span>
+              <strong>{{ summary.open_watched }}</strong>
+            </article>
+          </section>
+        {% endif %}
+
+        {% if alert_messages %}
+          <section class="panel status-card success reveal">
+            <p class="status-label">Alerts sent</p>
+            {% for message in alert_messages %}
+              <p>{{ message }}</p>
+            {% endfor %}
+          </section>
+        {% endif %}
+
+        {% if sections %}
+          <section class="results-header reveal">
+            <div>
+              <p class="eyebrow">Sections</p>
+              <h2>Watch the list, not the clutter.</h2>
+            </div>
+            {% if values.auto_refresh %}
+              <p class="refresh-note">Auto-refreshing in <span id="refresh-countdown">60</span>s</p>
+            {% endif %}
+          </section>
+
+          <section class="results-grid">
+            {% for section in sections %}
+              <article class="panel section-card reveal {% if section.available_seats > 0 %}open{% endif %} {% if section.is_watched %}watched{% endif %}">
+                <div class="section-topline">
+                  <span class="course-pill">{{ values.subject }} {{ values.catalog_nbr }}</span>
+                  {% if section.is_watched %}
+                    <span class="watch-pill">Watching</span>
+                  {% endif %}
+                </div>
+                <h3>{{ section.course_number }}</h3>
+                <p class="instructor">{{ section.instructor }}</p>
+                <div class="seat-band">
+                  <span>Seats</span>
+                  <strong>{{ section.seat_text }}</strong>
+                </div>
+                <p class="availability {% if section.available_seats > 0 %}positive{% else %}quiet{% endif %}">
+                  {% if section.available_seats > 0 %}
+                    {{ section.available_seats }} seats available now
+                  {% else %}
+                    No open seats yet
+                  {% endif %}
+                </p>
+              </article>
+            {% endfor %}
+          </section>
+        {% elif has_query and not error %}
+          <section class="panel status-card reveal">
+            <p class="status-label">No results</p>
+            <p>Nothing was returned for that combination yet. Try another term or catalog number.</p>
+          </section>
+        {% endif %}
+      </main>
+    </div>
+
+    {% if values.auto_refresh and sections %}
+      <script>
+        let countdown = 60;
+        const countdownEl = document.getElementById("refresh-countdown");
+        const interval = window.setInterval(() => {
+          countdown -= 1;
+          if (countdownEl) countdownEl.textContent = String(countdown);
+          if (countdown <= 0) {
+            window.clearInterval(interval);
+            window.location.reload();
+          }
+        }, 1000);
+      </script>
+    {% endif %}
+  </body>
+</html>
