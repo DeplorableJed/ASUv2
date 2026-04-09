@@ -52,3 +52,4 @@ python NotifyMe.py
 - The app currently searches Tempe and iCourse sections, matching the original script.
 - Auto-refresh is available in the web UI for repeated checks.
 - iMessage notifications are only sent for watched sections with open seats.
+- If you see a TLS or `cacert.pem` error after deleting or recreating a virtual environment, deactivate the shell, reactivate the current `.venv`, and restart the app.
